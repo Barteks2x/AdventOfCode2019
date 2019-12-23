@@ -65,13 +65,16 @@ public class Main23 {
                 readingPacket = null;
                 return y;
             }
-            Packet nextPacket = queue.poll();
-            if (nextPacket == null) {
-                if (network.getAndSetIdle(address)) {
-                    waitForPacket();
-                    nextPacket = queue.poll();
-                    if (nextPacket == null) throw new RuntimeException("No next packet?");
-                } else return BigInteger.ONE.negate();
+            Packet nextPacket;
+            synchronized (queue) {
+                nextPacket = queue.poll();
+                if (nextPacket == null) {
+                    if (network.getAndSetIdle(address)) {
+                        waitForPacket();
+                        nextPacket = queue.poll();
+                        if (nextPacket == null) throw new RuntimeException("No next packet?");
+                    } else return BigInteger.ONE.negate();
+                }
             }
             network.unsetIdle(address);
             readingPacket = nextPacket;
@@ -150,8 +153,8 @@ public class Main23 {
         }
 
         void waitForIdle() throws InterruptedException {
-            while (idleCount.get() != 50) {
-                synchronized (idleCount) {
+            synchronized (idleCount) {
+                while (idleCount.get() != 50) {
                     idleCount.wait();
                 }
             }
